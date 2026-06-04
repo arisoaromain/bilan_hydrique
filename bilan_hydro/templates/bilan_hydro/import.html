@@ -1,0 +1,286 @@
+{% extends "bilan_hydro/base.html" %}
+{% block title %}Importer des données — Bilan Hydrique{% endblock %}
+
+{% block extra_head %}
+<style>
+  .drop-zone {
+    border: 3px dashed #2e86c1;
+    border-radius: 16px;
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    background: #f8fbff;
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    background: #e8f4fd;
+    border-color: #1a5276;
+    transform: scale(1.01);
+  }
+  .drop-zone .icon { font-size: 3.5rem; color: #2e86c1; }
+  .drop-zone.has-file { border-color: #27ae60; background: #eafaf1; }
+  .drop-zone.has-file .icon { color: #27ae60; }
+  .format-badge { font-size: 0.75rem; }
+  .preview-table { font-size: 0.82rem; }
+  .station-card { cursor: pointer; transition: box-shadow 0.2s; }
+  .station-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+  <div class="col">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'bilan_accueil' %}">Accueil</a></li>
+        <li class="breadcrumb-item active">Importer des données</li>
+      </ol>
+    </nav>
+  </div>
+</div>
+
+<div class="row g-4">
+
+  <!-- Formulaire import -->
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header bg-primary text-white">
+        <i class="bi bi-cloud-upload me-2"></i>Importer un fichier Excel
+      </div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data" id="importForm">
+          {% csrf_token %}
+
+          <!-- Zone de dépôt -->
+          <div class="drop-zone mb-4" id="dropZone" onclick="document.getElementById('fichier').click()">
+            <div class="icon"><i class="bi bi-file-earmark-spreadsheet" id="dropIcon"></i></div>
+            <h5 class="mt-3 mb-1" id="dropTitle">Glissez votre fichier ici</h5>
+            <p class="text-muted mb-2" id="dropSubtitle">ou cliquez pour parcourir</p>
+            <div>
+              <span class="badge bg-success format-badge me-1">.xlsx</span>
+              <span class="badge bg-primary format-badge">.xls</span>
+            </div>
+            <input type="file" name="fichier" id="fichier" accept=".xlsx,.xls"
+                   class="d-none" onchange="onFileSelected(this)">
+          </div>
+
+          <!-- Prévisualisation -->
+          <div id="previewSection" class="d-none mb-4">
+            <div class="alert alert-info py-2 px-3 d-flex justify-content-between align-items-center">
+              <span><i class="bi bi-eye me-2"></i><strong id="previewNom"></strong></span>
+              <span class="badge bg-secondary" id="previewInfo"></span>
+            </div>
+            <div class="table-responsive" style="max-height:180px;overflow-y:auto;">
+              <table class="table table-sm table-bordered preview-table mb-0" id="previewTable">
+                <thead class="table-dark">
+                  <tr>
+                    <th>Date</th><th>T° (°C)</th><th>Préc. (mm)</th>
+                    <th>Humidité (%)</th><th>Insolation</th>
+                  </tr>
+                </thead>
+                <tbody id="previewBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Infos station -->
+          <div class="row g-3 mb-3">
+            <div class="col-md-7">
+              <label class="form-label fw-semibold">
+                <i class="bi bi-broadcast-pin me-1 text-primary"></i>Nom de la station
+              </label>
+              <input type="text" name="nom_station" id="nom_station" class="form-control"
+                     placeholder="ex: Betafo" required>
+            </div>
+            <div class="col-md-5">
+              <label class="form-label fw-semibold">
+                <i class="bi bi-compass me-1 text-primary"></i>Latitude (°)
+              </label>
+              <input type="number" name="latitude" id="latitude" class="form-control"
+                     placeholder="ex: -18.9" step="0.01" min="-90" max="90" required>
+              <div class="form-text">Négatif = hémisphère Sud</div>
+            </div>
+          </div>
+
+          <!-- Option remplacement -->
+          <div class="mb-4">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="remplacement" id="remplacement">
+              <label class="form-check-label" for="remplacement">
+                <strong>Remplacer</strong> les données existantes de cette station
+                <span class="text-muted small">(supprime aussi les bilans calculés)</span>
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100 py-2" id="btnImport" disabled>
+            <i class="bi bi-cloud-upload me-2"></i>Importer les données
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panneau droite : format attendu + stations existantes -->
+  <div class="col-lg-5">
+
+    <!-- Format attendu -->
+    <div class="card mb-3">
+      <div class="card-header bg-info text-white">
+        <i class="bi bi-info-circle me-2"></i>Format du fichier attendu
+      </div>
+      <div class="card-body small">
+        <p class="mb-2">Le fichier Excel doit avoir la structure suivante :</p>
+        <table class="table table-sm table-bordered preview-table">
+          <thead class="table-secondary">
+            <tr><th>Ligne 1</th><td colspan="4">En-tête / Informations station (ignorée)</td></tr>
+            <tr><th>Ligne 2</th><td colspan="4">En-tête / Informations station (ignorée)</td></tr>
+            <tr><th>Ligne 3</th><td>Date</td><td>Temperature</td><td>Precipitation</td><td>Humidite / Insolation</td></tr>
+          </thead>
+          <tbody>
+            <tr><th>Ligne 4+</th><td>01/01/1991</td><td>18.5</td><td>2.3</td><td>75 / 450</td></tr>
+          </tbody>
+        </table>
+        <ul class="mb-0 ps-3">
+          <li>Données <strong>horaires ou journalières</strong> → agrégées automatiquement en mensuel</li>
+          <li>Colonnes dans l'ordre : <code>Date, T°, Précipitations, Humidité, Insolation</code></li>
+          <li>L'insolation est utilisée uniquement pour la méthode <strong>Turc</strong></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Stations existantes -->
+    <div class="card">
+      <div class="card-header bg-secondary text-white d-flex justify-content-between">
+        <span><i class="bi bi-list-ul me-2"></i>Stations existantes</span>
+        <span class="badge bg-light text-dark">{{ stations|length }}</span>
+      </div>
+      <div class="card-body p-0">
+        {% if stations %}
+          <ul class="list-group list-group-flush">
+            {% for s in stations %}
+            <li class="list-group-item station-card d-flex justify-content-between align-items-center"
+                onclick="remplirStation('{{ s.nom }}', {{ s.latitude }})">
+              <div>
+                <i class="bi bi-broadcast-pin text-primary me-2"></i>
+                <strong>{{ s.nom }}</strong>
+                <span class="text-muted small ms-2">Lat. {{ s.latitude }}°</span>
+              </div>
+              <div class="d-flex gap-1">
+                <a href="{% url 'calcul_bilan' s.id %}" class="btn btn-sm btn-outline-primary"
+                   onclick="event.stopPropagation()">
+                  <i class="bi bi-calculator"></i>
+                </a>
+                <a href="{% url 'supprimer_station' s.id %}" class="btn btn-sm btn-outline-danger"
+                   onclick="event.stopPropagation()">
+                  <i class="bi bi-trash"></i>
+                </a>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="text-center text-muted py-4 small">
+            <i class="bi bi-inbox fs-3 d-block mb-2"></i>Aucune station importée
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// Drag & Drop
+const dropZone = document.getElementById('dropZone');
+['dragenter','dragover'].forEach(e => dropZone.addEventListener(e, ev => {
+  ev.preventDefault(); dropZone.classList.add('dragover');
+}));
+['dragleave','drop'].forEach(e => dropZone.addEventListener(e, ev => {
+  ev.preventDefault(); dropZone.classList.remove('dragover');
+}));
+dropZone.addEventListener('drop', ev => {
+  const file = ev.dataTransfer.files[0];
+  if (file) {
+    const input = document.getElementById('fichier');
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    onFileSelected(input);
+  }
+});
+
+function onFileSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  // Mise à jour visuelle de la zone
+  dropZone.classList.add('has-file');
+  document.getElementById('dropIcon').className = 'bi bi-check-circle-fill';
+  document.getElementById('dropTitle').textContent = file.name;
+  document.getElementById('dropSubtitle').textContent =
+    (file.size / 1024).toFixed(1) + ' Ko — Cliquez pour changer';
+
+  document.getElementById('btnImport').disabled = false;
+
+  // Lire le fichier pour prévisualisation avec SheetJS
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      // On utilise SheetJS via CDN
+      if (typeof XLSX === 'undefined') {
+        showPreviewFallback(file.name);
+        return;
+      }
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+      // Chercher les données (après les 2 lignes d'en-tête)
+      const dataRows = rows.slice(3, 13); // 10 premières lignes de données
+      const totalRows = rows.length - 3;
+
+      document.getElementById('previewNom').textContent = file.name;
+      document.getElementById('previewInfo').textContent =
+        `~${totalRows} lignes de données`;
+
+      const tbody = document.getElementById('previewBody');
+      tbody.innerHTML = '';
+      dataRows.forEach(row => {
+        if (!row[0]) return;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${row[0] instanceof Date ? row[0].toLocaleDateString('fr') : row[0]}</td>
+          <td>${typeof row[1] === 'number' ? row[1].toFixed(2) : row[1]}</td>
+          <td>${typeof row[2] === 'number' ? row[2].toFixed(2) : row[2]}</td>
+          <td>${typeof row[3] === 'number' ? row[3].toFixed(1) : row[3]}</td>
+          <td>${typeof row[4] === 'number' ? row[4].toFixed(1) : row[4]}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      document.getElementById('previewSection').classList.remove('d-none');
+    } catch(err) {
+      showPreviewFallback(file.name);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function showPreviewFallback(nom) {
+  document.getElementById('previewNom').textContent = nom;
+  document.getElementById('previewInfo').textContent = 'Prévisualisation indisponible';
+  document.getElementById('previewBody').innerHTML =
+    '<tr><td colspan="5" class="text-center text-muted">Chargez SheetJS pour la prévisualisation</td></tr>';
+  document.getElementById('previewSection').classList.remove('d-none');
+}
+
+function remplirStation(nom, lat) {
+  document.getElementById('nom_station').value = nom;
+  document.getElementById('latitude').value = lat;
+  document.getElementById('remplacement').checked = true;
+}
+</script>
+
+<!-- SheetJS pour prévisualisation côté client -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+{% endblock %}

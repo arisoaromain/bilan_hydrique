@@ -1,0 +1,185 @@
+{% extends 'agmet/base.html' %}
+{% block title %}Message {{ msg }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="bi bi-envelope-open me-2 text-primary"></i>Détail du message AGMET</h2>
+  <a href="{% url 'message_supprimer' msg.pk %}" class="btn btn-outline-danger btn-sm">
+    <i class="bi bi-trash me-1"></i>Supprimer
+  </a>
+</div>
+
+<!-- 1ère section : Message brut -->
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center
+    {% if msg.valide %}bg-success{% else %}bg-danger{% endif %} text-white">
+    <span><i class="bi bi-file-text me-2"></i>
+      <strong>1ère section</strong> – {{ msg.identification }} | {{ msg.get_mois_display }} {{ msg.annee }} | {{ msg.get_decade_display }}
+    </span>
+    {% if msg.valide %}
+      <span class="badge bg-light text-success">✅ Valide</span>
+    {% else %}
+      <span class="badge bg-light text-danger">⚠ Avec erreurs</span>
+    {% endif %}
+  </div>
+  <div class="card-body">
+    <pre class="font-monospace bg-light p-3 rounded mb-2">{{ msg.message_brut }}</pre>
+  </div>
+</div>
+
+<div class="row g-3">
+
+  <!-- 2ème + 3ème + 4ème sections : Données météo -->
+  {% if donnees_meteo %}
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header bg-info text-white fw-bold">
+        <i class="bi bi-thermometer-half me-2"></i>Sections 2 · 3 · 4 — Données météorologiques
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr><th>Groupe</th><th>Paramètre</th><th>Valeur</th></tr>
+          </thead>
+          <tbody>
+            <tr class="table-secondary"><td colspan="3" class="small fw-bold text-muted">2ème section (666) — Vent & Températures</td></tr>
+            <tr><td class="text-muted small">Omfff</td><td>Vent total</td><td>{{ donnees_meteo.fff|default:"—" }}</td></tr>
+            <tr><td class="text-muted small">1mfdfdfd</td><td>Vent diurne</td><td>{{ donnees_meteo.fdfdfd|default:"—" }}</td></tr>
+            <tr><td class="text-muted small">4SnTnTnTn</td><td>Tmin (°C)</td><td>{{ donnees_meteo.tn|default:"—" }}</td></tr>
+            <tr><td class="text-muted small">6SnTxTxTx</td><td>Tmax (°C)</td><td>{{ donnees_meteo.tx|default:"—" }}</td></tr>
+            <tr class="table-light"><td class="text-muted small">calculée</td><td><strong>Tmoy (°C)</strong></td><td><strong>{{ donnees_meteo.tm|default:"—" }}</strong></td></tr>
+            <tr><td class="text-muted small">8UnUnUxUx</td><td>Humidité min (%)</td><td>{{ donnees_meteo.un|default:"—" }}</td></tr>
+            <tr><td class="text-muted small">8UnUnUxUx</td><td>Humidité max (%)</td><td>{{ donnees_meteo.ux|default:"—" }}</td></tr>
+
+            <tr class="table-secondary"><td colspan="3" class="small fw-bold text-muted">3ème section (777) — Précipitations</td></tr>
+            <tr><td class="text-muted small">1qann</td><td>Jours de pluie</td><td>{{ donnees_meteo.n|default:"—" }}</td></tr>
+            <tr><td class="text-muted small">2RRRr</td><td>Précipitation (mm)</td><td>{{ donnees_meteo.rrr|default:"—" }}</td></tr>
+
+            <tr class="table-secondary"><td colspan="3" class="small fw-bold text-muted">4ème section (888) — Insolation · Évaporation · Sol</td></tr>
+            <tr><td class="text-muted small">OldIdIdId</td><td>Insolation (h)</td><td>{{ donnees_meteo.id_insol|default:"—" }}</td></tr>
+            <tr><td class="text-muted small">1MEvEvEv</td><td>Évaporation (mm)</td><td>{{ donnees_meteo.ev|default:"—" }}</td></tr>
+            <tr><td class="text-muted small">2SnTngTng</td><td>T° sol 10 cm (°C)</td><td>{{ donnees_meteo.tng|default:"—" }}</td></tr>
+          </tbody>
+        </table>
+
+        {% if donnees_meteo.erreurs %}
+        <div class="alert alert-warning small m-2 mb-0">
+          <strong>Erreurs :</strong><br>{{ donnees_meteo.erreurs|linebreaksbr }}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- 5ème section : Données agro (SECVA 999) -->
+  {% if donnees_agro %}
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header bg-success text-white fw-bold">
+        <i class="bi bi-tree me-2"></i>5ème section (999) — SECVA : {{ donnees_agro.nom_secva|default:"—" }}
+      </div>
+      <div class="card-body">
+
+        {% for i in '123' %}
+        {% if i == '1' and donnees_agro.culture1 %}
+        <div class="border rounded p-3 mb-3">
+          <div class="d-flex align-items-center mb-2">
+            <span class="badge bg-success me-2">11CcCcF / 22ESA</span>
+            <strong>Culture 1 : {{ donnees_agro.culture1 }}</strong>
+            <small class="text-muted ms-2">(code : {{ donnees_agro.code_cult1 }})</small>
+          </div>
+          <div class="row small">
+            <div class="col-6 mb-1">
+              <span class="text-muted">F – Phénologie :</span><br>
+              <span class="badge bg-primary">{{ donnees_agro.get_phenologie1_display|default:"—" }}</span>
+            </div>
+            <div class="col-6 mb-1">
+              <span class="text-muted">E – Ennemis :</span><br>
+              <span class="badge bg-warning text-dark">{{ donnees_agro.get_ennemis1_display|default:"—" }}</span>
+            </div>
+            <div class="col-6">
+              <span class="text-muted">S – Dégâts :</span><br>
+              <span class="badge bg-danger">{{ donnees_agro.get_degat1_display|default:"—" }}</span>
+            </div>
+            <div class="col-6">
+              <span class="text-muted">A – Aspect :</span><br>
+              <span class="badge bg-info text-dark">{{ donnees_agro.get_aspect1_display|default:"—" }}</span>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        {% if i == '2' and donnees_agro.culture2 %}
+        <div class="border rounded p-3 mb-3">
+          <div class="d-flex align-items-center mb-2">
+            <span class="badge bg-success me-2">33CcCcF / 44ESA</span>
+            <strong>Culture 2 : {{ donnees_agro.culture2 }}</strong>
+            <small class="text-muted ms-2">(code : {{ donnees_agro.code_cult2 }})</small>
+          </div>
+          <div class="row small">
+            <div class="col-6 mb-1">
+              <span class="text-muted">F – Phénologie :</span><br>
+              <span class="badge bg-primary">{{ donnees_agro.get_phenologie2_display|default:"—" }}</span>
+            </div>
+            <div class="col-6 mb-1">
+              <span class="text-muted">E – Ennemis :</span><br>
+              <span class="badge bg-warning text-dark">{{ donnees_agro.get_ennemis2_display|default:"—" }}</span>
+            </div>
+            <div class="col-6">
+              <span class="text-muted">S – Dégâts :</span><br>
+              <span class="badge bg-danger">{{ donnees_agro.get_degat2_display|default:"—" }}</span>
+            </div>
+            <div class="col-6">
+              <span class="text-muted">A – Aspect :</span><br>
+              <span class="badge bg-info text-dark">{{ donnees_agro.get_aspect2_display|default:"—" }}</span>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        {% if i == '3' and donnees_agro.culture3 %}
+        <div class="border rounded p-3 mb-3">
+          <div class="d-flex align-items-center mb-2">
+            <span class="badge bg-success me-2">55CcCcF / 66ESA</span>
+            <strong>Culture 3 : {{ donnees_agro.culture3 }}</strong>
+            <small class="text-muted ms-2">(code : {{ donnees_agro.code_cult3 }})</small>
+          </div>
+          <div class="row small">
+            <div class="col-6 mb-1">
+              <span class="text-muted">F – Phénologie :</span><br>
+              <span class="badge bg-primary">{{ donnees_agro.get_phenologie3_display|default:"—" }}</span>
+            </div>
+            <div class="col-6 mb-1">
+              <span class="text-muted">E – Ennemis :</span><br>
+              <span class="badge bg-warning text-dark">{{ donnees_agro.get_ennemis3_display|default:"—" }}</span>
+            </div>
+            <div class="col-6">
+              <span class="text-muted">S – Dégâts :</span><br>
+              <span class="badge bg-danger">{{ donnees_agro.get_degat3_display|default:"—" }}</span>
+            </div>
+            <div class="col-6">
+              <span class="text-muted">A – Aspect :</span><br>
+              <span class="badge bg-info text-dark">{{ donnees_agro.get_aspect3_display|default:"—" }}</span>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+
+        {% if not donnees_agro.culture1 and not donnees_agro.culture2 and not donnees_agro.culture3 %}
+        <div class="text-muted text-center py-3">Aucune culture enregistrée.</div>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<div class="mt-3">
+  <a href="{% url 'message_liste' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Retour à la liste
+  </a>
+</div>
+{% endblock %}

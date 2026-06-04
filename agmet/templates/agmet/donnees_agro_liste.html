@@ -1,0 +1,86 @@
+{% extends 'agmet/base.html' %}
+{% block title %}Données agro{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="bi bi-tree me-2 text-success"></i>Données agrométéorologiques</h2>
+  <a href="{% url 'export_agro' %}" class="btn btn-success">
+    <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exporter CSV
+  </a>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">Filtres</div>
+  <div class="card-body">
+    <form method="get">
+      <div class="row g-2">
+        <div class="col-md-3">{{ form.station }}</div>
+        <div class="col-md-2">{{ form.annee }}</div>
+        <div class="col-md-2">{{ form.mois }}</div>
+        <div class="col-md-3 d-flex gap-2">
+          <button class="btn btn-dgm w-100" type="submit"><i class="bi bi-search me-1"></i>Filtrer</button>
+          <a href="{% url 'donnees_agro' %}" class="btn btn-outline-secondary">✕</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body p-0" style="overflow-x:auto">
+    {% if donnees %}
+    <table class="table table-sm table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Station</th><th>Année</th><th>Mois</th><th>Déc.</th>
+          <th>SECVA</th>
+          <th>Culture 1</th><th>Phéno.</th><th>Ennemis</th><th>Dégâts</th><th>Aspect</th>
+          <th>Culture 2</th>
+          <th>Culture 3</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in donnees %}
+        <tr>
+          <td><small><strong>{{ d.identification }}</strong><br>{{ d.nom|truncatechars:18 }}</small></td>
+          <td>{{ d.annee }}</td>
+          <td>{{ d.mois }}</td>
+          <td>{{ d.decade }}</td>
+          <td><small>{{ d.nom_secva|default:"—" }}</small></td>
+          <td>{{ d.culture1|default:"—" }}</td>
+          <td>
+            {% if d.phenologie1 %}
+            <span class="badge bg-primary">{{ d.get_phenologie1_display }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if d.ennemis1 %}
+            <span class="badge bg-warning text-dark">{{ d.get_ennemis1_display }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if d.degat1 %}
+            <span class="badge bg-danger">{{ d.get_degat1_display }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if d.aspect1 %}
+            <span class="badge bg-info text-dark">{{ d.get_aspect1_display }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td>{{ d.culture2|default:"—" }}</td>
+          <td>{{ d.culture3|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-tree fs-1"></i>
+      <p class="mt-2">Aucune donnée agrométéorologique trouvée.<br>
+        <a href="{% url 'message_saisir' %}">Saisir un message AGMET avec section 999</a>
+      </p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

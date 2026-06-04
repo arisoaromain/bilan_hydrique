@@ -1,0 +1,75 @@
+{% extends 'agmet/base.html' %}
+{% block title %}Données météorologiques{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="bi bi-thermometer-half me-2 text-danger"></i>Données météorologiques</h2>
+  <a href="{% url 'export_meteo' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"
+     class="btn btn-success">
+    <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exporter CSV
+  </a>
+</div>
+
+<!-- Filtres -->
+<div class="card mb-4">
+  <div class="card-header">Filtres</div>
+  <div class="card-body">
+    <form method="get">
+      <div class="row g-2">
+        <div class="col-md-3">{{ form.station }}</div>
+        <div class="col-md-2">{{ form.annee }}</div>
+        <div class="col-md-2">{{ form.mois }}</div>
+        <div class="col-md-2">{{ form.decade }}</div>
+        <div class="col-md-3 d-flex gap-2">
+          <button class="btn btn-dgm w-100" type="submit"><i class="bi bi-search me-1"></i>Filtrer</button>
+          <a href="{% url 'donnees_meteo' %}" class="btn btn-outline-secondary">✕</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body p-0" style="overflow-x:auto">
+    {% if donnees %}
+    <table class="table table-sm table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Station</th><th>Année</th><th>Mois</th><th>Déc.</th>
+          <th>Tmin</th><th>Tmax</th><th>Tmoy</th>
+          <th>Hmin%</th><th>Hmax%</th>
+          <th>N j.</th><th>RRR mm</th>
+          <th>Insol h</th><th>Évap mm</th><th>Tng°C</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in donnees %}
+        <tr>
+          <td><small><strong>{{ d.identification }}</strong><br>{{ d.nom|truncatechars:20 }}</small></td>
+          <td>{{ d.annee }}</td>
+          <td>{{ d.mois }}</td>
+          <td>{{ d.decade }}</td>
+          <td>{{ d.tn|default:"—" }}</td>
+          <td>{{ d.tx|default:"—" }}</td>
+          <td><strong>{{ d.tm|default:"—" }}</strong></td>
+          <td>{{ d.un|default:"—" }}</td>
+          <td>{{ d.ux|default:"—" }}</td>
+          <td>{{ d.n|default:"—" }}</td>
+          <td>{{ d.rrr|default:"—" }}</td>
+          <td>{{ d.id_insol|default:"—" }}</td>
+          <td>{{ d.ev|default:"—" }}</td>
+          <td>{{ d.tng|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-thermometer fs-1"></i>
+      <p class="mt-2">Aucune donnée trouvée.<br>
+        <a href="{% url 'message_saisir' %}">Saisir un message AGMET</a> pour alimenter la base.
+      </p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

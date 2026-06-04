@@ -1,0 +1,537 @@
+{% extends "bilan_hydro/base.html" %}
+{% block title %}Résultats — {{ station.nom }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  .chart-card { border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
+  .badge-etp  { background:#8e44ad; }
+  .badge-etr  { background:#27ae60; }
+  .badge-da   { background:#c0392b; }
+  .badge-rfu  { background:#2980b9; }
+  .badge-exc  { background:#e67e22; }
+  .chart-nav .nav-link { border-radius: 8px; font-size:.85rem; padding:.35rem .8rem; }
+  .chart-nav .nav-link.active { background:#1a5276; color:#fff; }
+  .export-bar { background:#f8f9fa; border:1px solid #dee2e6;
+                border-radius:10px; padding:.75rem 1rem; }
+  .table th   { background:#1a5276; color:#fff; white-space:nowrap; }
+  .cmp-badge  { font-size:.7rem; padding:.25rem .5rem; border-radius:20px; }
+  .cmp-thorn  { background:#E8DAEF; color:#6c3483; }
+  .cmp-turc   { background:#D5F5E3; color:#1e8449; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Breadcrumb + badges méthode ── -->
+<div class="row mb-3 align-items-center">
+  <div class="col">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'bilan_accueil' %}">Accueil</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'calcul_bilan' station.id %}">{{ station.nom }}</a></li>
+        <li class="breadcrumb-item active">Résultats</li>
+      </ol>
+    </nav>
+  </div>
+  <div class="col-auto d-flex gap-2 flex-wrap">
+    <span class="badge fs-6 {% if methode == 'thornthwaite' %}bg-primary{% else %}bg-success{% endif %} py-2 px-3">
+      <i class="bi bi-diagram-3 me-1"></i>{{ methode_label }}
+    </span>
+    <span class="badge bg-secondary fs-6 py-2 px-3">RFU max = {{ rfu_max }} mm</span>
+    <!-- Bouton export GLOBAL -->
+    <a href="{% url 'export_excel' station.id %}?methode={{ methode }}&annees={% for r in resultats %}{{ r.annee }}{% if not forloop.last %},{% endif %}{% endfor %}"
+       class="btn btn-success btn-sm px-3">
+      <i class="bi bi-file-earmark-excel me-1"></i>Exporter tout en Excel
+    </a>
+  </div>
+</div>
+
+<!-- ── Boucle par année ── -->
+{% for res in resultats %}
+<div class="card mb-5" id="card_{{ res.annee }}">
+  <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <span class="fw-bold fs-6"><i class="bi bi-calendar3 me-2"></i>Année {{ res.annee }}</span>
+    <div class="d-flex gap-2 align-items-center">
+      <small>{{ station.nom }} &nbsp;|&nbsp; Lat. {{ station.latitude }}°</small>
+      <!-- Export année individuelle -->
+      <a href="{% url 'export_excel' station.id %}?methode={{ methode }}&annees={{ res.annee }}"
+         class="btn btn-sm btn-light text-success fw-semibold">
+        <i class="bi bi-file-earmark-excel me-1"></i>Excel {{ res.annee }}
+      </a>
+    </div>
+  </div>
+
+  <div class="card-body">
+
+    <!-- ── Navigation graphiques ── -->
+    <ul class="nav chart-nav mb-3 gap-1" id="chartNav{{ res.annee }}">
+      <li class="nav-item">
+        <a class="nav-link active" href="#" onclick="showChart('bilan','{{ res.annee }}'); return false;">
+          <i class="bi bi-bar-chart me-1"></i>Bilan P/ETP/ETR/DA
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#" onclick="showChart('rfu','{{ res.annee }}'); return false;">
+          <i class="bi bi-droplet me-1"></i>RFU / Stockage
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#" onclick="showChart('courbes','{{ res.annee }}'); return false;">
+          <i class="bi bi-graph-up me-1"></i>Courbes représentatives
+        </a>
+      </li>
+      <li class="nav-item" id="navCmp{{ res.annee }}" style="display:none">
+        <a class="nav-link" href="#" onclick="showChart('comparaison','{{ res.annee }}'); return false;">
+          <i class="bi bi-intersect me-1"></i>Comparaison ETP
+          <span class="ms-1 cmp-badge cmp-thorn">TH</span>
+          <span class="cmp-badge cmp-turc">TU</span>
+        </a>
+      </li>
+    </ul>
+
+    <!-- ── Graphiques ── -->
+    <div class="row g-3 mb-4">
+
+      <!-- Graphique 1 : Bilan Hydrique (barres P + lignes ETP/ETR/DA) -->
+      <div class="col-12" id="div_bilan_{{ res.annee }}">
+        <div class="chart-card p-3 bg-white">
+          <canvas id="chartBilan{{ res.annee }}" height="110"></canvas>
+        </div>
+      </div>
+
+      <!-- Graphique 2 : RFU + Variation de stock + Excédent -->
+      <div class="col-12 d-none" id="div_rfu_{{ res.annee }}">
+        <div class="chart-card p-3 bg-white">
+          <canvas id="chartRFU{{ res.annee }}" height="110"></canvas>
+        </div>
+      </div>
+
+      <!-- Graphique 3 : Courbes représentatives complètes -->
+      <div class="col-12 d-none" id="div_courbes_{{ res.annee }}">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="chart-card p-3 bg-white">
+              <canvas id="chartETP{{ res.annee }}" height="200"></canvas>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="chart-card p-3 bg-white">
+              <canvas id="chartDA{{ res.annee }}" height="200"></canvas>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="chart-card p-3 bg-white">
+              <canvas id="chartStock{{ res.annee }}" height="200"></canvas>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="chart-card p-3 bg-white">
+              <canvas id="chartTemp{{ res.annee }}" height="200"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Graphique 4 : Comparaison ETP Thornthwaite vs Turc -->
+      <div class="col-12 d-none" id="div_comparaison_{{ res.annee }}">
+        <div class="chart-card p-3 bg-white">
+          <canvas id="chartComparaison{{ res.annee }}" height="110"></canvas>
+        </div>
+        <div id="cmpInfo{{ res.annee }}" class="mt-2 text-center text-muted small"></div>
+      </div>
+    </div>
+
+    <!-- ── Tableau résultats ── -->
+    <div class="table-responsive">
+      <table class="table table-sm table-hover table-bordered text-center align-middle mb-0"
+             id="table_{{ res.annee }}">
+        <thead>
+          <tr>
+            <th>Mois</th>
+            <th>P (mm)</th>
+            <th>T (°C)</th>
+            <th><span class="badge badge-etp">ETP</span> mm</th>
+            <th><span class="badge badge-etr">ETR</span> mm</th>
+            <th><span class="badge badge-rfu">RFU</span> mm</th>
+            <th><span class="badge badge-da">DA</span> mm</th>
+            <th><span class="badge badge-exc">ΔS</span> mm</th>
+            <th><span class="badge bg-info">EXC</span> mm</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+        <tfoot class="table-secondary fw-bold">
+          <tr>
+            <td>TOTAL</td><td id="tot_p_{{ res.annee }}"></td><td>—</td>
+            <td id="tot_etp_{{ res.annee }}"></td>
+            <td id="tot_etr_{{ res.annee }}"></td>
+            <td>—</td>
+            <td id="tot_da_{{ res.annee }}"></td>
+            <td>—</td>
+            <td id="tot_exc_{{ res.annee }}"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+  </div><!-- card-body -->
+</div><!-- card -->
+{% endfor %}
+
+<!-- ── Boutons navigation bas de page ── -->
+<div class="d-flex gap-2 mt-2 mb-4 flex-wrap">
+  <a href="{% url 'calcul_bilan' station.id %}" class="btn btn-outline-primary">
+    <i class="bi bi-arrow-left me-1"></i>Nouveau calcul
+  </a>
+  <a href="{% url 'historique' station.id %}" class="btn btn-outline-secondary">
+    <i class="bi bi-clock-history me-1"></i>Historique
+  </a>
+  <a href="{% url 'export_excel' station.id %}?methode={{ methode }}&annees={% for r in resultats %}{{ r.annee }}{% if not forloop.last %},{% endif %}{% endfor %}"
+     class="btn btn-success">
+    <i class="bi bi-file-earmark-excel me-1"></i>Exporter tout en Excel
+  </a>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     JAVASCRIPT — données + graphiques
+════════════════════════════════════════════════════════ -->
+<script>
+const resultats = {{ resultats_json|safe }};
+const stationId = {{ station.id }};
+const methode   = "{{ methode }}";
+const chartsMap = {};   // stocke les instances Chart.js
+
+// ── Navigation entre graphiques ─────────────────────────
+function showChart(type, yr) {
+  ['bilan','rfu','courbes','comparaison'].forEach(t => {
+    document.getElementById(`div_${t}_${yr}`).classList.add('d-none');
+  });
+  document.getElementById(`div_${type}_${yr}`).classList.remove('d-none');
+
+  // Mettre à jour la nav active
+  const nav = document.getElementById(`chartNav${yr}`);
+  nav.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  const links = nav.querySelectorAll('.nav-link');
+  const map = ['bilan','rfu','courbes','comparaison'];
+  links[map.indexOf(type)].classList.add('active');
+
+  // Chargement lazy de la comparaison
+  if (type === 'comparaison') loadComparaison(yr);
+}
+
+// ── Remplissage tableaux + totaux ───────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  resultats.forEach(res => {
+    const yr = res.annee;
+    const sum = arr => arr.reduce((a,b) => a+b, 0).toFixed(1);
+
+    // Totaux
+    document.getElementById(`tot_p_${yr}`).textContent   = sum(res.precipitation);
+    document.getElementById(`tot_etp_${yr}`).textContent = sum(res.etp);
+    document.getElementById(`tot_etr_${yr}`).textContent = sum(res.etr);
+    document.getElementById(`tot_da_${yr}`).textContent  = sum(res.da);
+    document.getElementById(`tot_exc_${yr}`).textContent = sum(res.excedent);
+
+    // Lignes du tableau
+    const tbody = document.querySelector(`#table_${yr} tbody`);
+    tbody.innerHTML = '';
+    res.mois.forEach((m, i) => {
+      const ds = res.variation_stock[i];
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="fw-semibold">${m}</td>
+        <td>${res.precipitation[i].toFixed(1)}</td>
+        <td>${res.temperature[i].toFixed(1)}</td>
+        <td style="color:#8e44ad;font-weight:600">${res.etp[i].toFixed(1)}</td>
+        <td class="text-success fw-semibold">${res.etr[i].toFixed(1)}</td>
+        <td class="text-primary">${res.rfu[i].toFixed(1)}</td>
+        <td class="${res.da[i]>0?'text-danger':''}">${res.da[i].toFixed(1)}</td>
+        <td class="${ds>0?'text-success':ds<0?'text-danger':''}">${ds>0?'+':''}${ds.toFixed(1)}</td>
+        <td class="${res.excedent[i]>0?'text-info fw-bold':''}">${res.excedent[i].toFixed(1)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Créer tous les graphiques
+    buildCharts(res);
+
+    // Vérifier si comparaison disponible (async)
+    checkComparaison(yr);
+  });
+});
+
+// ── Construction des graphiques ─────────────────────────
+function buildCharts(res) {
+  const yr  = res.annee;
+  const mois = res.mois;
+
+  // ── Graphique 1 : Bilan Hydrique ──────────────────────
+  chartsMap[`bilan${yr}`] = new Chart(
+    document.getElementById(`chartBilan${yr}`).getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: mois,
+      datasets: [
+        { label: 'Précipitations (mm)', data: res.precipitation,
+          backgroundColor: 'rgba(41,128,185,0.55)', borderColor: '#2980b9', borderWidth: 1 },
+        { label: 'ETP (mm)', type: 'line', data: res.etp,
+          borderColor: '#8e44ad', backgroundColor: 'rgba(142,68,173,0.08)',
+          borderWidth: 2.5, pointRadius: 4, tension: 0.35, fill: false, yAxisID: 'y' },
+        { label: 'ETR (mm)', type: 'line', data: res.etr,
+          borderColor: '#27ae60', borderWidth: 2.5, pointRadius: 4,
+          tension: 0.35, fill: false, yAxisID: 'y' },
+        { label: 'DA (mm)', type: 'line', data: res.da,
+          borderColor: '#c0392b', borderWidth: 2, pointRadius: 3, borderDash: [4,3],
+          tension: 0.35, fill: false, yAxisID: 'y' },
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+        title: { display: true, text: `Bilan Hydrique ${yr} — P / ETP / ETR / DA`,
+                 font: { size: 13, weight: 'bold' } },
+        tooltip: { callbacks: {
+          label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)} mm`
+        }}
+      },
+      scales: { y: { title: { display: true, text: 'mm' }, beginAtZero: true } }
+    }
+  });
+
+  // ── Graphique 2 : RFU / Stockage / Excédent ───────────
+  chartsMap[`rfu${yr}`] = new Chart(
+    document.getElementById(`chartRFU${yr}`).getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: mois,
+      datasets: [
+        { label: 'RFU (mm)', data: res.rfu,
+          backgroundColor: 'rgba(52,152,219,0.6)', borderColor: '#2980b9', borderWidth: 1 },
+        { label: 'Variation Stock (mm)', type: 'line', data: res.variation_stock,
+          borderColor: '#e67e22', borderWidth: 2.5, pointRadius: 4,
+          tension: 0.35, fill: false, borderDash: [5,3] },
+        { label: 'Excédent (mm)', type: 'line', data: res.excedent,
+          borderColor: '#16a085', borderWidth: 2.5, pointRadius: 4, tension: 0.35, fill: false },
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+        title: { display: true, text: `RFU, Variation de Stockage & Excédent ${yr}`,
+                 font: { size: 13, weight: 'bold' } }
+      },
+      scales: { y: { title: { display: true, text: 'mm' }, beginAtZero: true } }
+    }
+  });
+
+  // ── Graphique 3a : Courbe ETP vs ETR ──────────────────
+  chartsMap[`etp${yr}`] = new Chart(
+    document.getElementById(`chartETP${yr}`).getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: mois,
+      datasets: [
+        { label: 'ETP (mm)', data: res.etp,
+          borderColor: '#8e44ad', backgroundColor: 'rgba(142,68,173,0.08)',
+          borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 7,
+          tension: 0.4, fill: true },
+        { label: 'ETR (mm)', data: res.etr,
+          borderColor: '#27ae60', backgroundColor: 'rgba(39,174,96,0.1)',
+          borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 7,
+          tension: 0.4, fill: true },
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12 } },
+        title: { display: true, text: `Évolution ETP / ETR — ${yr}`,
+                 font: { size: 12, weight: 'bold' } }
+      },
+      scales: { y: { title: { display: true, text: 'mm' }, beginAtZero: true } }
+    }
+  });
+
+  // ── Graphique 3b : Courbe Déficit Agricole ─────────────
+  chartsMap[`da${yr}`] = new Chart(
+    document.getElementById(`chartDA${yr}`).getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: mois,
+      datasets: [
+        { label: 'Précipitations (mm)', data: res.precipitation,
+          backgroundColor: 'rgba(41,128,185,0.45)', borderColor: '#2980b9', borderWidth: 1 },
+        { label: 'Déficit Agricole (mm)', type: 'line', data: res.da,
+          borderColor: '#c0392b', backgroundColor: 'rgba(192,57,43,0.08)',
+          borderWidth: 2.5, pointRadius: 5, tension: 0.4, fill: true },
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12 } },
+        title: { display: true, text: `Précipitations & Déficit Agricole — ${yr}`,
+                 font: { size: 12, weight: 'bold' } }
+      },
+      scales: { y: { title: { display: true, text: 'mm' }, beginAtZero: true } }
+    }
+  });
+
+  // ── Graphique 3c : Variation de Stock + Excédent ───────
+  chartsMap[`stock${yr}`] = new Chart(
+    document.getElementById(`chartStock${yr}`).getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: mois,
+      datasets: [
+        { label: 'RFU (mm)', data: res.rfu,
+          backgroundColor: res.rfu.map(v => `rgba(52,152,219,${0.3 + v/200})`),
+          borderColor: '#2980b9', borderWidth: 1 },
+        { label: 'Excédent (mm)', type: 'line', data: res.excedent,
+          borderColor: '#16a085', backgroundColor: 'rgba(22,160,133,0.1)',
+          borderWidth: 2.5, pointRadius: 4, tension: 0.35, fill: true },
+        { label: 'Variation Stock (mm)', type: 'line', data: res.variation_stock,
+          borderColor: '#e67e22', borderWidth: 2, pointRadius: 4,
+          borderDash: [4,3], tension: 0.3, fill: false },
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12 } },
+        title: { display: true, text: `RFU, Excédent & Variation de Stock — ${yr}`,
+                 font: { size: 12, weight: 'bold' } }
+      },
+      scales: { y: { title: { display: true, text: 'mm' } } }
+    }
+  });
+
+  // ── Graphique 3d : Température + Précipitations ────────
+  chartsMap[`temp${yr}`] = new Chart(
+    document.getElementById(`chartTemp${yr}`).getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: mois,
+      datasets: [
+        { label: 'Précipitations (mm)', data: res.precipitation,
+          backgroundColor: 'rgba(41,128,185,0.5)', borderColor: '#2980b9',
+          borderWidth: 1, yAxisID: 'yP' },
+        { label: 'Température (°C)', type: 'line', data: res.temperature,
+          borderColor: '#e74c3c', backgroundColor: 'rgba(231,76,60,0.05)',
+          borderWidth: 2.5, pointRadius: 5, tension: 0.4, fill: false, yAxisID: 'yT' },
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12 } },
+        title: { display: true, text: `Température & Précipitations — ${yr}`,
+                 font: { size: 12, weight: 'bold' } }
+      },
+      scales: {
+        yP: { position: 'left', title: { display: true, text: 'Préc. (mm)' }, beginAtZero: true },
+        yT: { position: 'right', title: { display: true, text: 'T° (°C)' },
+               grid: { drawOnChartArea: false } }
+      }
+    }
+  });
+}
+
+// ── Vérifier si la comparaison ETP est disponible ───────
+function checkComparaison(yr) {
+  fetch(`/api/station/${stationId}/comparaison/?annee=${yr}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.comparaison_dispo) {
+        const btn = document.getElementById(`navCmp${yr}`);
+        if (btn) btn.style.display = '';
+      }
+    })
+    .catch(() => {});
+}
+
+// ── Chargement lazy du graphique comparaison ────────────
+function loadComparaison(yr) {
+  const canvasId = `chartComparaison${yr}`;
+  if (chartsMap[canvasId]) return; // déjà chargé
+
+  fetch(`/api/station/${stationId}/comparaison/?annee=${yr}`)
+    .then(r => r.json())
+    .then(data => {
+      const info = document.getElementById(`cmpInfo${yr}`);
+
+      if (!data.comparaison_dispo) {
+        info.innerHTML = `
+          <div class="alert alert-info py-2">
+            <i class="bi bi-info-circle me-2"></i>
+            La comparaison n'est disponible que si les <strong>deux méthodes</strong>
+            ont été calculées pour ${yr}.
+            Relancez un calcul avec l'autre méthode pour activer cette vue.
+          </div>`;
+        return;
+      }
+
+      // Calcul des écarts
+      const ecarts = data.thornthwaite.map((v, i) => +(v - data.turc[i]).toFixed(1));
+      const totalTH = data.thornthwaite.reduce((a,b)=>a+b,0).toFixed(1);
+      const totalTU = data.turc.reduce((a,b)=>a+b,0).toFixed(1);
+
+      info.innerHTML = `
+        <span class="cmp-badge cmp-thorn me-2">Thornthwaite total : <strong>${totalTH} mm</strong></span>
+        <span class="cmp-badge cmp-turc me-2">Turc total : <strong>${totalTU} mm</strong></span>
+        <span class="badge bg-light text-dark border">
+          Écart annuel : <strong>${(+totalTH - +totalTU).toFixed(1)} mm</strong>
+        </span>`;
+
+      chartsMap[canvasId] = new Chart(
+        document.getElementById(canvasId).getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: data.mois,
+          datasets: [
+            { label: 'ETP Thornthwaite (mm)', data: data.thornthwaite,
+              borderColor: '#8e44ad', backgroundColor: 'rgba(142,68,173,0.08)',
+              borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 7,
+              tension: 0.4, fill: true,
+              pointStyle: 'circle' },
+            { label: 'ETP Turc (mm)', data: data.turc,
+              borderColor: '#27ae60', backgroundColor: 'rgba(39,174,96,0.08)',
+              borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 7,
+              tension: 0.4, fill: true,
+              pointStyle: 'triangle' },
+            { label: 'Écart TH − Turc (mm)', data: ecarts,
+              borderColor: '#e67e22', backgroundColor: 'rgba(230,126,34,0.05)',
+              borderWidth: 1.5, pointRadius: 3, borderDash: [5,4],
+              tension: 0.3, fill: false, type: 'bar',
+              backgroundColor: ecarts.map(v =>
+                v >= 0 ? 'rgba(142,68,173,0.25)' : 'rgba(39,174,96,0.25)') },
+          ]
+        },
+        options: {
+          responsive: true,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 14, font: { size: 11 } } },
+            title: { display: true,
+                     text: `Comparaison ETP Thornthwaite vs Turc — ${yr}`,
+                     font: { size: 13, weight: 'bold' } },
+            tooltip: { callbacks: {
+              label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)} mm`
+            }}
+          },
+          scales: {
+            y: { title: { display: true, text: 'mm' }, beginAtZero: true }
+          }
+        }
+      });
+    });
+}
+</script>
+{% endblock %}

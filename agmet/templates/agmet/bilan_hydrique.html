@@ -1,0 +1,80 @@
+{% extends 'agmet/base.html' %}
+{% block title %}Bilan hydrique{% endblock %}
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-droplet-half me-2 text-info"></i>Bilan hydrique – Méthode Thornthwaite</h2>
+<p class="text-muted">Calcul de l'ETP mensuelle et du bilan hydrique selon l'algorithme du mémoire (Figure 8).</p>
+
+<div class="card mb-4">
+  <div class="card-header">Paramètres de calcul</div>
+  <div class="card-body">
+    <form method="get">
+      <div class="row g-2">
+        <div class="col-md-4">{{ form.station.label_tag }} {{ form.station }}</div>
+        <div class="col-md-3">{{ form.annee.label_tag }} {{ form.annee }}</div>
+        <div class="col-md-3 d-flex align-items-end">
+          <button class="btn btn-dgm w-100" type="submit">
+            <i class="bi bi-calculator me-1"></i>Calculer le bilan
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if result %}
+<div class="card mb-4">
+  <div class="card-header bg-info text-white">
+    Indice thermique annuel I = {{ result.I }} &nbsp;|&nbsp; Exposant a = {{ result.a }}
+  </div>
+  <div class="card-body p-0" style="overflow-x:auto">
+    <table class="table table-bordered table-sm mb-0 text-center">
+      <thead class="table-info">
+        <tr>
+          <th>Mois</th>
+          <th>Tmoy (°C)</th>
+          <th>P (mm)</th>
+          <th>ETP (mm)</th>
+          <th>P – ETP</th>
+          <th>ETR (mm)</th>
+          <th>Déficit</th>
+          <th>Excédent</th>
+          <th>Stock sol</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in result.mois %}
+        <tr>
+          <th>{{ row.mois }}</th>
+          <td>{{ row.tm }}</td>
+          <td>{{ row.rrr }}</td>
+          <td>{{ row.etp }}</td>
+          <td class="{% if row.diff < 0 %}text-danger{% else %}text-success{% endif %}">
+            {{ row.diff }}
+          </td>
+          <td>{{ row.etr }}</td>
+          <td class="text-danger">{{ row.deficit }}</td>
+          <td class="text-primary">{{ row.excedent }}</td>
+          <td>{{ row.stock }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="alert alert-info small">
+  <strong>Légende :</strong>
+  P = Précipitation décadaire cumulée par mois |
+  ETP = Évapotranspiration potentielle (Thornthwaite) |
+  ETR = Évapotranspiration réelle |
+  Déficit = ETP – ETR (besoin en eau non satisfait) |
+  Excédent = eau perdue par ruissellement |
+  Stock sol = réserve hydrique du sol (RU = 100 mm par défaut)
+</div>
+{% elif request.GET %}
+<div class="alert alert-warning">
+  <i class="bi bi-exclamation-triangle me-2"></i>
+  Données insuffisantes pour cette station/année. Vérifiez que des messages AGMET ont bien été saisis.
+</div>
+{% endif %}
+{% endblock %}

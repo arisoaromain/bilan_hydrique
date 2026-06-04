@@ -1,0 +1,168 @@
+{% extends "bilan_hydro/base.html" %}
+{% block title %}Calcul Bilan — {{ station.nom }}{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+  <div class="col">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'bilan_accueil' %}">Accueil</a></li>
+        <li class="breadcrumb-item active">Calcul — {{ station.nom }}</li>
+      </ol>
+    </nav>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-md-5">
+    <div class="card">
+      <div class="card-header bg-primary text-white">
+        <i class="bi bi-calculator me-2"></i>Paramètres du Calcul
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+
+          <!-- Méthode -->
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Méthode de calcul</label>
+            <div class="row g-2">
+              <div class="col-6">
+                <input type="radio" class="btn-check" name="methode" id="m_thorn" value="thornthwaite" checked>
+                <label class="btn btn-outline-primary w-100" for="m_thorn">
+                  <i class="bi bi-thermometer-half d-block fs-4 mb-1"></i>
+                  <strong>Thornthwaite</strong>
+                  <div class="small text-muted">T° + Latitude</div>
+                </label>
+              </div>
+              <div class="col-6">
+                <input type="radio" class="btn-check" name="methode" id="m_turc" value="turc">
+                <label class="btn btn-outline-success w-100" for="m_turc">
+                  <i class="bi bi-sun d-block fs-4 mb-1"></i>
+                  <strong>Turc</strong>
+                  <div class="small text-muted">T° + Insolation</div>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mode de calcul -->
+          <div class="mb-4">
+            <label class="form-label fw-semibold">Mode de calcul</label>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="mode" id="mode_annee" value="annee" checked
+                     onchange="toggleMode(this.value)">
+              <label class="form-check-label" for="mode_annee">Année unique</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="mode" id="mode_periode" value="periode"
+                     onchange="toggleMode(this.value)">
+              <label class="form-check-label" for="mode_periode">Période (plusieurs années)</label>
+            </div>
+          </div>
+
+          <!-- Année unique -->
+          <div id="div_annee" class="mb-3">
+            <label class="form-label fw-semibold">Année</label>
+            <select name="annee" class="form-select">
+              {% for a in annees %}
+                <option value="{{ a }}" {% if forloop.last %}selected{% endif %}>{{ a }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Période -->
+          <div id="div_periode" class="mb-3 d-none">
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label fw-semibold">Année début</label>
+                <select name="annee_debut" class="form-select">
+                  {% for a in annees %}
+                    <option value="{{ a }}" {% if forloop.first %}selected{% endif %}>{{ a }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label fw-semibold">Année fin</label>
+                <select name="annee_fin" class="form-select">
+                  {% for a in annees %}
+                    <option value="{{ a }}" {% if forloop.last %}selected{% endif %}>{{ a }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- RFU Max -->
+          <div class="mb-4">
+            <label class="form-label fw-semibold">
+              Réserve Utile Maximale (mm)
+              <i class="bi bi-info-circle text-muted ms-1" title="Capacité maximale de stockage du sol en eau"></i>
+            </label>
+            <input type="number" name="rfu_max" class="form-control" value="100" min="10" max="300" step="10">
+            <div class="form-text">Valeur typique : 100 mm (sol argileux), 50 mm (sol sableux)</div>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100 py-2">
+            <i class="bi bi-play-circle me-2"></i>Lancer le calcul
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Info station -->
+  <div class="col-md-7">
+    <div class="card mb-3">
+      <div class="card-header bg-secondary text-white">
+        <i class="bi bi-info-circle me-2"></i>Informations sur la station
+      </div>
+      <div class="card-body">
+        <table class="table table-sm mb-0">
+          <tr><th>Station</th><td><strong>{{ station.nom }}</strong></td></tr>
+          <tr><th>Latitude</th><td>{{ station.latitude }}°
+            {% if station.latitude < 0 %}(Hémisphère Sud){% else %}(Hémisphère Nord){% endif %}
+          </td></tr>
+          <tr><th>Période disponible</th>
+            <td>{{ annees.0 }} – {{ annees|last }}</td>
+          </tr>
+          <tr><th>Nombre d'années</th><td>{{ annees|length }}</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- Formules -->
+    <div class="card">
+      <div class="card-header bg-info text-white">
+        <i class="bi bi-book me-2"></i>Rappel des formules
+      </div>
+      <div class="card-body small">
+        <h6 class="fw-bold text-primary">Thornthwaite</h6>
+        <p class="mb-1"><code>ETP = 16 × K × (10T / I)<sup>α</sup></code></p>
+        <ul class="mb-3">
+          <li><em>I</em> = indice thermique annuel = Σ(T/5)<sup>1.514</sup></li>
+          <li><em>α</em> = 6.75×10⁻⁷ I³ − 7.71×10⁻⁵ I² + 1.792×10⁻² I + 0.49</li>
+          <li><em>K</em> = facteur de correction photothermique (latitude + mois)</li>
+        </ul>
+        <h6 class="fw-bold text-success">Turc</h6>
+        <p class="mb-1"><code>ETP = 0.40 × T/(T+15) × (Rg + 50)</code></p>
+        <ul class="mb-3">
+          <li>Si H &lt; 50% : multiplier par <em>(1 + (50−H)/70)</em></li>
+          <li><em>Rg</em> = rayonnement global journalier (cal/cm²/j)</li>
+        </ul>
+        <h6 class="fw-bold">Bilan</h6>
+        <p class="mb-0"><code>ETR = min(P + RFU, ETP)</code> &nbsp;|&nbsp;
+        <code>DA = ETP − ETR</code> &nbsp;|&nbsp;
+        <code>ΔS = RFU<sub>n</sub> − RFU<sub>n−1</sub></code></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleMode(val) {
+  document.getElementById('div_annee').classList.toggle('d-none', val !== 'annee');
+  document.getElementById('div_periode').classList.toggle('d-none', val !== 'periode');
+}
+</script>
+{% endblock %}

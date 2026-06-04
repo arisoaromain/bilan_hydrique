@@ -1,0 +1,63 @@
+{% extends 'agmet/base.html' %}
+{% block title %}{{ station.nom }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="bi bi-broadcast-pin me-2 text-primary"></i>{{ station.nom }}</h2>
+  <div>
+    <a href="{% url 'station_modifier' station.pk %}" class="btn btn-outline-secondary me-2">
+      <i class="bi bi-pencil me-1"></i>Modifier
+    </a>
+    <a href="{% url 'station_supprimer' station.pk %}" class="btn btn-outline-danger">
+      <i class="bi bi-trash me-1"></i>Supprimer
+    </a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header bg-primary text-white">Informations</div>
+      <div class="card-body">
+        <table class="table table-sm mb-0">
+          <tr><th>Indicatif</th><td><span class="badge bg-primary fs-6">{{ station.identification }}</span></td></tr>
+          <tr><th>Type</th><td>{{ station.get_type_station_display }}</td></tr>
+          <tr><th>Latitude</th><td>{{ station.latitude }}° S</td></tr>
+          <tr><th>Longitude</th><td>{{ station.longitude }}° E</td></tr>
+          <tr><th>Altitude</th><td>{{ station.altitude|default:"—" }} m</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-8">
+    <div class="card h-100">
+      <div class="card-header">Messages AGMET enregistrés ({{ messages_station.count }})</div>
+      <div class="card-body p-0">
+        {% if messages_station %}
+        <table class="table table-sm table-hover mb-0">
+          <thead><tr><th>Année</th><th>Mois</th><th>Décade</th><th>Statut</th><th></th></tr></thead>
+          <tbody>
+            {% for msg in messages_station|slice:":10" %}
+            <tr>
+              <td>{{ msg.annee }}</td>
+              <td>{{ msg.get_mois_display }}</td>
+              <td>{{ msg.get_decade_display }}</td>
+              <td>
+                {% if msg.valide %}<span class="badge bg-success">Valide</span>
+                {% else %}<span class="badge bg-danger">Erreurs</span>{% endif %}
+              </td>
+              <td><a href="{% url 'message_detail' msg.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="text-center py-4 text-muted">Aucun message pour cette station.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+<a href="{% url 'station_liste' %}" class="btn btn-outline-secondary">
+  <i class="bi bi-arrow-left me-1"></i>Retour à la liste
+</a>
+{% endblock %}

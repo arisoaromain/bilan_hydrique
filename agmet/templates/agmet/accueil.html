@@ -1,0 +1,128 @@
+{% extends 'agmet/base.html' %}
+{% block title %}Tableau de bord{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-speedometer2 me-2 text-primary"></i>Tableau de bord AGMET</h2>
+
+<!-- Statistiques -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-lg-3">
+    <div class="card stat-card h-100 p-3">
+      <div class="d-flex align-items-center">
+        <i class="bi bi-broadcast-pin fs-2 text-primary me-3"></i>
+        <div>
+          <div class="fs-1 fw-bold text-primary">{{ nb_stations }}</div>
+          <div class="text-muted small">Stations enregistrées</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card h-100 p-3" style="border-left:4px solid #6c757d">
+      <div class="d-flex align-items-center">
+        <i class="bi bi-envelope-fill fs-2 text-secondary me-3"></i>
+        <div>
+          <div class="fs-1 fw-bold text-secondary">{{ nb_messages }}</div>
+          <div class="text-muted small">Messages AGMET saisis</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card h-100 p-3" style="border-left:4px solid #198754">
+      <div class="d-flex align-items-center">
+        <i class="bi bi-check-circle-fill fs-2 text-success me-3"></i>
+        <div>
+          <div class="fs-1 fw-bold text-success">{{ nb_valides }}</div>
+          <div class="text-muted small">Messages valides</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card h-100 p-3" style="border-left:4px solid #dc3545">
+      <div class="d-flex align-items-center">
+        <i class="bi bi-exclamation-triangle-fill fs-2 text-danger me-3"></i>
+        <div>
+          <div class="fs-1 fw-bold text-danger">{{ nb_erreurs }}</div>
+          <div class="text-muted small">Messages avec erreurs</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Actions rapides -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <a href="{% url 'message_saisir' %}" class="card text-decoration-none h-100 p-4 text-center">
+      <i class="bi bi-input-cursor-text fs-1 text-primary"></i>
+      <h5 class="mt-2">Saisir un message AGMET</h5>
+      <p class="text-muted small">Coller et dépouiller automatiquement</p>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="{% url 'donnees_meteo' %}" class="card text-decoration-none h-100 p-4 text-center">
+      <i class="bi bi-thermometer-half fs-1 text-danger"></i>
+      <h5 class="mt-2">Consulter les données</h5>
+      <p class="text-muted small">Recherche par station, année, mois</p>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="{% url 'bilan_hydrique' %}" class="card text-decoration-none h-100 p-4 text-center">
+      <i class="bi bi-droplet-half fs-1 text-info"></i>
+      <h5 class="mt-2">Bilan hydrique (ETP)</h5>
+      <p class="text-muted small">Méthode Thornthwaite</p>
+    </a>
+  </div>
+</div>
+
+<!-- Derniers messages -->
+<div class="card">
+  <div class="card-header bg-primary text-white">
+    <i class="bi bi-clock-history me-2"></i>Derniers messages saisis
+  </div>
+  <div class="card-body p-0">
+    {% if derniers_messages %}
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Station</th><th>Année</th><th>Mois</th><th>Décade</th>
+          <th>Statut</th><th>Date saisie</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for msg in derniers_messages %}
+        <tr>
+          <td><strong>{{ msg.identification }}</strong> {{ msg.nom }}</td>
+          <td>{{ msg.annee }}</td>
+          <td>{{ msg.get_mois_display }}</td>
+          <td>{{ msg.get_decade_display }}</td>
+          <td>
+            {% if msg.valide %}
+              <span class="badge bg-success">✅ Valide</span>
+            {% else %}
+              <span class="badge bg-danger">⚠ Erreurs</span>
+            {% endif %}
+          </td>
+          <td class="text-muted small">{{ msg.date_saisie|date:"d/m/Y H:i" }}</td>
+          <td>
+            <a href="{% url 'message_detail' msg.pk %}" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-eye"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="text-center text-muted py-5">
+      <i class="bi bi-inbox fs-1"></i>
+      <p class="mt-2">Aucun message encore saisi.<br>
+        <a href="{% url 'message_saisir' %}">Saisir le premier message AGMET</a>
+      </p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

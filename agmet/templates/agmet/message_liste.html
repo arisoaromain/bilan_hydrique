@@ -1,0 +1,68 @@
+{% extends 'agmet/base.html' %}
+{% block title %}Messages AGMET{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="bi bi-list-ul me-2 text-primary"></i>Messages AGMET</h2>
+  <a href="{% url 'message_saisir' %}" class="btn btn-dgm">
+    <i class="bi bi-plus-circle me-1"></i>Nouveau message
+  </a>
+</div>
+
+<!-- Filtres -->
+<div class="card mb-4">
+  <div class="card-header">Filtres de recherche</div>
+  <div class="card-body">
+    <form method="get">
+      <div class="row g-2">
+        <div class="col-md-3">{{ form.station.label_tag }} {{ form.station }}</div>
+        <div class="col-md-2">{{ form.annee.label_tag }} {{ form.annee }}</div>
+        <div class="col-md-2">{{ form.mois.label_tag }} {{ form.mois }}</div>
+        <div class="col-md-2">{{ form.decade.label_tag }} {{ form.decade }}</div>
+        <div class="col-md-3 d-flex align-items-end gap-2">
+          <button class="btn btn-dgm w-100" type="submit"><i class="bi bi-search me-1"></i>Filtrer</button>
+          <a href="{% url 'message_liste' %}" class="btn btn-outline-secondary">✕</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    {% if messages_list %}
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr><th>Station</th><th>Nom</th><th>Année</th><th>Mois</th><th>Décade</th><th>Statut</th><th>Saisie</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for msg in messages_list %}
+        <tr>
+          <td><span class="badge bg-primary">{{ msg.identification }}</span></td>
+          <td>{{ msg.nom }}</td>
+          <td>{{ msg.annee }}</td>
+          <td>{{ msg.get_mois_display }}</td>
+          <td>{{ msg.get_decade_display }}</td>
+          <td>
+            {% if msg.valide %}<span class="badge bg-success">✅ Valide</span>
+            {% else %}<span class="badge bg-danger">⚠ Erreurs</span>{% endif %}
+          </td>
+          <td class="text-muted small">{{ msg.date_saisie|date:"d/m/Y" }}</td>
+          <td>
+            <a href="{% url 'message_detail' msg.pk %}" class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-eye"></i></a>
+            <a href="{% url 'message_supprimer' msg.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-inbox fs-1"></i>
+      <p class="mt-2">Aucun message trouvé.<br>
+        <a href="{% url 'message_saisir' %}">Saisir le premier message</a>
+      </p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

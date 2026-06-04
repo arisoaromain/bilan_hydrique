@@ -1,0 +1,220 @@
+{% extends 'agmet/base.html' %}
+{% block title %}Saisir un message AGMET{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-input-cursor-text me-2 text-primary"></i>Dépouillement du message AGMET</h2>
+
+<div class="row">
+  <!-- Formulaire de saisie -->
+  <div class="col-lg-6">
+    <div class="card mb-4">
+      <div class="card-header bg-primary text-white">
+        <i class="bi bi-pencil-square me-2"></i>Saisie du message
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label fw-bold">{{ form.message_brut.label }}</label>
+            {{ form.message_brut }}
+            <div class="form-text">{{ form.message_brut.help_text }}</div>
+            {% if form.message_brut.errors %}
+              <div class="text-danger small">{{ form.message_brut.errors }}</div>
+            {% endif %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">{{ form.annee.label }}</label>
+            {{ form.annee }}
+            {% if form.annee.errors %}
+              <div class="text-danger small">{{ form.annee.errors }}</div>
+            {% endif %}
+          </div>
+          <button type="submit" name="depouiller" class="btn btn-dgm w-100">
+            <i class="bi bi-search me-2"></i>Dépouiller le message
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Aide format AGMET (structure correcte du mémoire) -->
+    <div class="card border-info">
+      <div class="card-header bg-info text-white small fw-bold">
+        <i class="bi bi-info-circle me-1"></i>Structure du message AGMET (II.2.1)
+      </div>
+      <div class="card-body small font-monospace p-3">
+
+        <div class="mb-2">
+          <span class="badge bg-secondary">1ère section</span><br>
+          <code>AGMET  Y₁Y₁MMA  IIiii</code>
+          <div class="text-muted" style="font-size:.78rem">
+            Y₁Y₁ = 51/52/53 (décade) | MM = mois | A = type station<br>
+            IIiii = indicatif mécanographique (5 chiffres)
+          </div>
+        </div>
+
+        <div class="mb-2">
+          <span class="badge bg-secondary">2ème section</span><br>
+          <code>666  (Omfff)  (1mf<sub>d</sub>f<sub>d</sub>f<sub>d</sub>)  4S<sub>n</sub>T<sub>n</sub>T<sub>n</sub>T<sub>n</sub>  6S<sub>n</sub>T<sub>x</sub>T<sub>x</sub>T<sub>x</sub>  (8U<sub>n</sub>U<sub>n</sub>U<sub>x</sub>U<sub>x</sub>)</code>
+          <div class="text-muted" style="font-size:.78rem">
+            Vent total | Vent diurne | Tmin | Tmax | Humidité
+          </div>
+        </div>
+
+        <div class="mb-2">
+          <span class="badge bg-secondary">3ème section</span><br>
+          <code>777  1qann  (2RRRr)</code>
+          <div class="text-muted" style="font-size:.78rem">
+            Précipitations décadaires
+          </div>
+        </div>
+
+        <div class="mb-2">
+          <span class="badge bg-secondary">4ème section</span><br>
+          <code>888  Ol<sub>d</sub>I<sub>d</sub>I<sub>d</sub>I<sub>d</sub>  1ME<sub>v</sub>E<sub>v</sub>E<sub>v</sub>  2S<sub>n</sub>T<sub>ng</sub>T<sub>ng</sub>T<sub>ng</sub></code>
+          <div class="text-muted" style="font-size:.78rem">
+            Insolation | Évaporation | T° sol 10 cm
+          </div>
+        </div>
+
+        <div class="mb-0">
+          <span class="badge bg-success">5ème section</span><br>
+          <code>Nom_SECVA  999<br>
+11C₁C₁F₁  22E₁S₁A₁<br>
+33C₂C₂F₂  44E₂S₂A₂<br>
+55C₃C₃F₃  66E₃S₃A₃<br>
+FIN MESSAGE</code>
+          <div class="text-muted" style="font-size:.78rem">
+            Nom poste | Cultures (code, phénologie, ennemis, dégâts, aspect)
+          </div>
+        </div>
+
+        <hr class="my-2">
+        <div class="text-muted" style="font-size:.78rem">
+          <strong>Exemple complet :</strong><br>
+          <code>AGMET 51011 32155 666 03145 13087 40285 60305 85575 777 10205 21254 888 01023 10125 20124 SECVA-TANA 999 110102 220310 331403 440201 FIN MESSAGE</code>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Résultat du dépouillement -->
+  <div class="col-lg-6">
+    {% if resultat %}
+    <div class="card mb-3">
+      <div class="card-header {% if resultat.valide %}bg-success{% else %}bg-danger{% endif %} text-white">
+        <i class="bi {% if resultat.valide %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+        Résultat –
+        {% if resultat.valide %}✅ Aucune erreur{% else %}⚠ {{ resultat.erreurs|length }} erreur(s){% endif %}
+      </div>
+      <div class="card-body">
+
+        <!-- 1ère section : En-tête -->
+        {% if resultat.header %}
+        <h6 class="fw-bold text-secondary mb-1"><span class="badge bg-secondary me-1">1</span> Identification</h6>
+        <table class="table table-sm mb-3">
+          <tr><th>Station (IIiii)</th><td><strong>{{ resultat.header.identification }}</strong></td></tr>
+          <tr><th>Décade</th><td>{{ resultat.header.decade_label }}</td></tr>
+          <tr><th>Mois</th><td>{{ resultat.header.mois_label }}</td></tr>
+          <tr><th>Année saisie</th><td>{{ resultat.annee }}</td></tr>
+          <tr><th>Type station</th><td>{{ resultat.header.type_station }}</td></tr>
+        </table>
+        {% endif %}
+
+        <!-- 2ème section : Météo -->
+        {% if resultat.meteo %}
+        <h6 class="fw-bold text-secondary mb-1"><span class="badge bg-secondary me-1">2+3+4</span> Données météorologiques</h6>
+        <table class="table table-sm mb-3">
+          {% if resultat.meteo.fff is not None %}
+          <tr><td class="text-muted small">Omfff – Vent total</td><td>{{ resultat.meteo.fff }}</td></tr>{% endif %}
+          {% if resultat.meteo.fdfdfd is not None %}
+          <tr><td class="text-muted small">1mfdfdfd – Vent diurne</td><td>{{ resultat.meteo.fdfdfd }}</td></tr>{% endif %}
+          {% if resultat.meteo.tn is not None %}
+          <tr><td class="text-muted small">4SnTnTnTn – Tmin (°C)</td><td>{{ resultat.meteo.tn }}</td></tr>{% endif %}
+          {% if resultat.meteo.tx is not None %}
+          <tr><td class="text-muted small">6SnTxTxTx – Tmax (°C)</td><td>{{ resultat.meteo.tx }}</td></tr>{% endif %}
+          {% if resultat.meteo.tm is not None %}
+          <tr class="table-light"><td class="text-muted small">Tmoy calculée (°C)</td><td><strong>{{ resultat.meteo.tm }}</strong></td></tr>{% endif %}
+          {% if resultat.meteo.un is not None %}
+          <tr><td class="text-muted small">8UnUn – Humidité min (%)</td><td>{{ resultat.meteo.un }}</td></tr>{% endif %}
+          {% if resultat.meteo.ux is not None %}
+          <tr><td class="text-muted small">8UxUx – Humidité max (%)</td><td>{{ resultat.meteo.ux }}</td></tr>{% endif %}
+          {% if resultat.meteo.n is not None %}
+          <tr><td class="text-muted small">777 – Jours de pluie</td><td>{{ resultat.meteo.n }}</td></tr>{% endif %}
+          {% if resultat.meteo.rrr is not None %}
+          <tr><td class="text-muted small">2RRRr – Précipitation (mm)</td><td>{{ resultat.meteo.rrr }}</td></tr>{% endif %}
+          {% if resultat.meteo.id_insol is not None %}
+          <tr><td class="text-muted small">888 OldId – Insolation (h)</td><td>{{ resultat.meteo.id_insol }}</td></tr>{% endif %}
+          {% if resultat.meteo.ev is not None %}
+          <tr><td class="text-muted small">1MEvEv – Évaporation (mm)</td><td>{{ resultat.meteo.ev }}</td></tr>{% endif %}
+          {% if resultat.meteo.tng is not None %}
+          <tr><td class="text-muted small">2SnTng – T° sol 10cm (°C)</td><td>{{ resultat.meteo.tng }}</td></tr>{% endif %}
+        </table>
+        {% endif %}
+
+        <!-- 5ème section : Agro -->
+        {% if resultat.agro %}
+        <h6 class="fw-bold text-secondary mb-1">
+          <span class="badge bg-success me-1">5</span>
+          Section SECVA – {{ resultat.nom_secva }}
+        </h6>
+        {% for c in resultat.agro %}
+        <div class="border rounded p-2 mb-2 bg-light">
+          <div class="fw-bold text-success">Culture {{ forloop.counter }} : {{ c.culture|default:"—" }}</div>
+          <div class="row small mt-1">
+            <div class="col-6">
+              <span class="text-muted">Phénologie :</span>
+              <span class="badge bg-primary">{{ c.phenologie_label|default:"—" }}</span>
+            </div>
+            <div class="col-6">
+              <span class="text-muted">Ennemis :</span>
+              <span class="badge bg-warning text-dark">{{ c.ennemis_label|default:"—" }}</span>
+            </div>
+            <div class="col-6 mt-1">
+              <span class="text-muted">Dégâts :</span>
+              <span class="badge bg-danger">{{ c.degat_label|default:"—" }}</span>
+            </div>
+            <div class="col-6 mt-1">
+              <span class="text-muted">Aspect :</span>
+              <span class="badge bg-info text-dark">{{ c.aspect_label|default:"—" }}</span>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- Erreurs -->
+        {% if resultat.erreurs %}
+        <h6 class="fw-bold text-danger mt-3 mb-1">
+          <i class="bi bi-exclamation-triangle me-1"></i>Erreurs détectées
+        </h6>
+        <ul class="list-group list-group-flush mb-3">
+          {% for err in resultat.erreurs %}
+          <li class="list-group-item list-group-item-danger small py-1">{{ err }}</li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+
+        <!-- Bouton enregistrement -->
+        <form method="post" class="mt-3">
+          {% csrf_token %}
+          <button type="submit" name="enregistrer"
+            class="btn {% if resultat.valide %}btn-success{% else %}btn-warning{% endif %} w-100">
+            <i class="bi bi-save me-2"></i>
+            Enregistrer en base de données
+            {% if not resultat.valide %}(malgré les erreurs){% endif %}
+          </button>
+        </form>
+      </div>
+    </div>
+    {% else %}
+    <div class="card text-center p-5 text-muted h-100 d-flex align-items-center justify-content-center"
+         style="border: 2px dashed #ccc; min-height:300px">
+      <div>
+        <i class="bi bi-arrow-left-circle fs-1 text-primary"></i>
+        <p class="mt-3 mb-0">Collez votre message AGMET<br>et cliquez sur <strong>Dépouiller</strong></p>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

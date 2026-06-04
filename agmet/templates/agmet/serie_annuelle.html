@@ -1,0 +1,74 @@
+{% extends 'agmet/base.html' %}
+{% load agmet_extras %}
+{% block title %}Série annuelle{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-table me-2 text-primary"></i>Tableau décadaire annuel</h2>
+<p class="text-muted">Équivalent des tables « pluie », « Tn », « Tx »… du mémoire (Tableau 14).</p>
+
+<div class="card mb-4">
+  <div class="card-header">Sélection</div>
+  <div class="card-body">
+    <form method="get">
+      <div class="row g-2">
+        <div class="col-md-4">
+          <label class="form-label fw-bold">Station</label>
+          {{ form.station }}
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-bold">Paramètre</label>
+          {{ form.parametre }}
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fw-bold">Année</label>
+          {{ form.annee }}
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button class="btn btn-dgm w-100" type="submit">
+            <i class="bi bi-search me-1"></i>Afficher
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if serie %}
+<div class="card">
+  <div class="card-header bg-primary text-white">
+    {{ serie.get_parametre_display }} – {{ serie.station.nom }} – {{ serie.annee }}
+  </div>
+  <div class="card-body p-0" style="overflow-x:auto">
+    <table class="table table-bordered table-sm mb-0 text-center">
+      <thead>
+        <tr class="table-primary">
+          <th>Décade</th>
+          {% for m in mois_abbr %}<th>{{ m }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in "123" %}
+        <tr>
+          <th class="table-light">{{ d }}</th>
+          {% for mi in mois_indices %}
+            <td>
+              {% with val=tableau|get_item:mi|get_item:d %}
+                {{ val|default:"—" }}
+              {% endwith %}
+            </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% elif request.GET %}
+<div class="alert alert-warning">
+  <i class="bi bi-exclamation-triangle me-2"></i>
+  Aucune donnée trouvée pour cette combinaison.
+  <a href="{% url 'message_saisir' %}">Saisir des messages AGMET</a> pour alimenter la série.
+</div>
+{% endif %}
+{% endblock %}

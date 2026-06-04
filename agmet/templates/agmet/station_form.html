@@ -1,0 +1,30 @@
+{% extends 'agmet/base.html' %}
+{% block title %}{{ titre }}{% endblock %}
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-broadcast-pin me-2 text-primary"></i>{{ titre }}</h2>
+
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header bg-primary text-white">Informations de la station</div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          {% for field in form %}
+          <div class="mb-3">
+            <label class="form-label fw-bold">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+            {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+          </div>
+          {% endfor %}
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-dgm"><i class="bi bi-save me-1"></i>Enregistrer</button>
+            <a href="{% url 'station_liste' %}" class="btn btn-outline-secondary">Annuler</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

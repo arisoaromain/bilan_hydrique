@@ -1,0 +1,115 @@
+{% extends "bilan_hydro/base.html" %}
+{% block title %}Accueil — Bilan Hydrique{% endblock %}
+
+{% block content %}
+<div class="hero">
+  <div class="row align-items-center">
+    <div class="col-md-8">
+      <h1 class="fw-bold mb-2"><i class="bi bi-cloud-rain me-2"></i>Bilan Hydrique</h1>
+      <p class="mb-0 opacity-75">
+        Calcul de l'ETP, ETR, RFU, Déficit Agricole et Variation de Stockage<br>
+        par les méthodes <strong>Thornthwaite</strong> et <strong>Turc</strong>
+      </p>
+    </div>
+      <div class="col-md-4 text-center">
+        <a href="{% url 'import_donnees' %}" class="btn btn-light btn-lg mt-2">
+          <i class="bi bi-cloud-upload me-2"></i>Importer des données
+        </a>
+      </div>
+  </div>
+</div>
+
+<!-- Légende variables -->
+<div class="row g-3 mb-4">
+  {% for label, badge, desc in variables %}{% endfor %}
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="card-title"><span class="badge badge-etp me-2">ETP</span>Évapotranspiration Potentielle</h6>
+        <p class="small text-muted mb-0">Demande évaporatoire de l'atmosphère (mm/mois)</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="card-title"><span class="badge badge-etr me-2">ETR</span>Évapotranspiration Réelle</h6>
+        <p class="small text-muted mb-0">Évapotranspiration effective limitée par les réserves (mm/mois)</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="card-title"><span class="badge badge-rfu me-2">RFU</span>Réserve Facilement Utilisable</h6>
+        <p class="small text-muted mb-0">Stock d'eau du sol disponible pour les plantes (mm)</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="card-title"><span class="badge badge-da me-2">DA</span>Déficit Agricole</h6>
+        <p class="small text-muted mb-0">ETP − ETR, manque d'eau pour les cultures (mm/mois)</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="card-title"><span class="badge badge-exc me-2">ΔS</span>Variation de Stockage</h6>
+        <p class="small text-muted mb-0">Variation mensuelle du stock d'eau dans le sol (mm)</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h6 class="card-title"><span class="badge bg-info me-2">EXC</span>Excédent / Ruissellement</h6>
+        <p class="small text-muted mb-0">Eau en surplus après saturation du sol (mm/mois)</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Stations disponibles -->
+<div class="card">
+  <div class="card-header bg-primary text-white">
+    <i class="bi bi-geo-alt-fill me-2"></i>Stations Météorologiques
+  </div>
+  <div class="card-body">
+    {% if stations %}
+      <div class="row g-3">
+        {% for station in stations %}
+        <div class="col-md-4">
+          <div class="card border h-100">
+            <div class="card-body">
+              <h5 class="card-title fw-bold">
+                <i class="bi bi-broadcast-pin text-primary me-2"></i>{{ station.nom }}
+              </h5>
+              <p class="text-muted small mb-2">
+                <i class="bi bi-compass me-1"></i>Latitude : {{ station.latitude }}°
+              </p>
+              <a href="{% url 'calcul_bilan' station.id %}" class="btn btn-primary btn-sm me-2">
+                <i class="bi bi-calculator me-1"></i>Calculer
+              </a>
+              <a href="{% url 'historique' station.id %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-clock-history me-1"></i>Historique
+              </a>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        Aucune station trouvée.
+        <a href="{% url 'import_donnees' %}" class="alert-link">
+          <i class="bi bi-cloud-upload me-1"></i>Importer vos données ici
+        </a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
